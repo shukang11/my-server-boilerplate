@@ -10,6 +10,7 @@ content = env_file.read_text()
 class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
+    ALGORITHM: str = "HS256"
     ECHO_SQL: bool = False
 
     model_config = SettingsConfigDict(
