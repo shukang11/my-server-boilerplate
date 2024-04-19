@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from server_core.database import DBBaseModel as core_model
+from app.database import DBBaseModel as core_model
 
 load_dotenv()
 
@@ -31,7 +31,9 @@ target_metadata = [core_model.metadata]
 
 
 def get_url() -> str:
-    url = os.getenv("SQLALCHEMY_DATABASE_URL")
+    from app.settings import settings
+
+    url = settings.DATABASE_URL or os.getenv("SQLALCHEMY_DATABASE_URL")
     return url
 
 

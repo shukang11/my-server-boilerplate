@@ -1,58 +1,115 @@
-import os
+from copy import copy
+from typing import AsyncGenerator, Generator
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from httpx import AsyncClient
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, SessionTransaction
 
-os.environ["SQLALCHEMY_DATABASE_URL"] = "sqlite:///:memory:"
-
-from server_api.main import create_app  # noqa: E402
-# create all tables
-from server_core.database import DBBaseModel  # noqa: E402
-from server_core.database._session import SessionLocal, engine  # noqa: E402
-
-# set SQLALCHEMY_DATABASE_URL to memory database
-DBBaseModel.metadata.create_all(bind=engine)
-
-app = create_app()
-
-
-TEST_ADMIN_USERNAME = "test_admin"
-TEST_ADMIN_PASSWORD = "test_admin"
-TEST_ADMIN_PHONE = "12345678901"
+from app.api.dependencies.session import get_session
+from app.database._base_model import DBBaseModel
+from app.main import app
+from app.settings import settings
 
 
 @pytest.fixture
-def admin_username() -> str:
-    return TEST_ADMIN_USERNAME
+def anyio_backend() -> str:
+    return "asyncio"
 
 
 @pytest.fixture
-def admin_password() -> str:
-    return TEST_ADMIN_PASSWORD
+async def ac() -> AsyncGenerator:
+    async with AsyncClient(app=app, base_url="https://test") as c:
+        yield c
+
+
+@pytest.fixture(scope="session")
+def setup_db() -> Generator:
+    sync_url = copy(settings.DATABASE_URL)
+    sync_url = sync_url.replace("+aiosqlite", "")
+    sync_url = sync_url.replace("+asyncpg", "")
+    engine = create_engine(sync_url)
+    conn = engine.connect()
+    # Terminate transaction
+    conn.execute(text("commit"))
+    try:
+        conn.execute(text("drop database test"))
+    except SQLAlchemyError:
+        pass
+    finally:
+        conn.close()
+
+    conn = engine.connect()
+    # Terminate transaction
+    conn.execute(text("commit"))
+    conn.execute(text("create database test"))
+    conn.close()
+
+    yield
+
+    conn = engine.connect()
+    # Terminate transaction
+    conn.execute(text("commit"))
+    try:
+        conn.execute(text("drop database test"))
+    except SQLAlchemyError:
+        pass
+    conn.close()
+    engine.dispose()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_db(setup_db: Generator) -> Generator:
+    sync_url = copy(settings.DATABASE_URL)
+    sync_url = sync_url.replace("+aiosqlite", "")
+    sync_url = sync_url.replace("+asyncpg", "")
+    engine = create_engine(sync_url)
+
+    with engine.begin():
+        DBBaseModel.metadata.drop_all(engine)
+        DBBaseModel.metadata.create_all(engine)
+        yield
+        DBBaseModel.metadata.drop_all(engine)
+
+    engine.dispose()
 
 
 @pytest.fixture
-def admin_phone() -> str:
-    return TEST_ADMIN_PHONE
+async def session() -> AsyncGenerator:
+    # https://github.com/sqlalchemy/sqlalchemy/issues/5811#issuecomment-756269881
+    async_engine = create_async_engine(settings.DATABASE_URL)
+    async with async_engine.connect() as conn:
+        await conn.begin()
+        await conn.begin_nested()
+        AsyncSessionLocal = async_sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=conn,
+            future=True,
+        )
 
+        async_session = AsyncSessionLocal()
 
-@pytest.fixture
-def admin_id(session: Session, admin_username: str) -> int:
-    from server_core.database import UserInDB
+        @event.listens_for(async_session.sync_session, "after_transaction_end")
+        def end_savepoint(session: Session, transaction: SessionTransaction) -> None:
+            if conn.closed:
+                return
+            if not conn.in_nested_transaction():
+                if conn.sync_connection:
+                    conn.sync_connection.begin_nested()
 
-    session.query(UserInDB).filter_by(username=admin_username).first().id
+        def test_get_session() -> Generator:
+            try:
+                yield AsyncSessionLocal
+            except SQLAlchemyError:
+                pass
 
+        app.dependency_overrides[get_session] = test_get_session
 
-@pytest.fixture
-def session() -> Session:
-    session = SessionLocal()
-    return session
+        yield async_session
+        await async_session.close()
+        await conn.rollback()
 
-
-@pytest.fixture
-def client() -> TestClient:
-    # override the default environment variable
-
-    client = TestClient(app)
-    return client
+    await async_engine.dispose()
