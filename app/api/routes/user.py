@@ -1,12 +1,12 @@
 from fastapi import APIRouter
 
-from app.api.dependencies import AsyncSession
 from app.api.dependencies.auth import UserRequire
+from app.api.dependencies.session import AsyncSession
 from app.api.response import Response
 from app.controllers.user import (LoginResp, LoginUser, RegisterUser, UserSchema,
-                                  login_user, register_user)
+                                  login_user, register_user, user_count)
 
-router = APIRouter(prefix="/auth", tags=["个人信息接口"])
+router = APIRouter(prefix="/user", tags=["个人信息接口"])
 
 
 @router.post(
@@ -60,3 +60,13 @@ async def customer_info(
 )
 async def user_logout() -> Response[bool]:
     return Response(data=True)
+
+
+@router.get(
+    "/count",
+    summary="用户数量",
+    description="用户数量",
+)
+async def _user_count(session: AsyncSession) -> Response[int]:
+    count = await user_count(session=session)
+    return Response(data=count)

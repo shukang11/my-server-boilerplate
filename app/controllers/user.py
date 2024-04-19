@@ -1,7 +1,7 @@
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -81,8 +81,9 @@ async def login_user(login_user: LoginUser, session: AsyncSession) -> UserInDB:
             UserInDB.password == hashed_password,
         )
     )
+    result = await session.execute(stmt)
 
-    user = await session.scalar(stmt)
+    user = await result.scalar()
 
     if not user:
         raise ValueError("用户名或密码错误")
@@ -94,3 +95,10 @@ async def login_user(login_user: LoginUser, session: AsyncSession) -> UserInDB:
     session.add(user)
 
     return user
+
+
+async def user_count(session: AsyncSession) -> int:
+    count_stmt = select(func.count()).with_only_columns(UserInDB)
+    result = await session.execute(count_stmt)
+    count = result.scalar()
+    return count

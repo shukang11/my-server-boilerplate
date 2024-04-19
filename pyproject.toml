@@ -18,6 +18,7 @@ click = "^8.1.7"
 pydantic-settings = "^2.2.1"
 fastapi-login = "^1.10.0"
 aiosqlite = "^0.20.0"
+gunicorn = "^22.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
