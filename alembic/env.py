@@ -33,8 +33,11 @@ target_metadata = [core_model.metadata]
 def get_url() -> str:
     from app.settings import settings
 
-    url = settings.DATABASE_URL or os.getenv("SQLALCHEMY_DATABASE_URL")
-    return url
+    sync_url = settings.SQLALCHEMY_DATABASE_URL or os.getenv("SQLALCHEMY_DATABASE_URL")
+    sync_url = sync_url.replace("+aiosqlite", "")
+    sync_url = sync_url.replace("+asyncpg", "")
+    print(f"Using database url: {sync_url}")
+    return sync_url
 
 
 def run_migrations_offline() -> None:
@@ -68,6 +71,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_url()
     connectable = engine_from_config(

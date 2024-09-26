@@ -24,7 +24,7 @@ async def test_register_user(ac: AsyncClient, session: AsyncSession) -> None:
 
     data = {"username": "test", "phone": "12345678904"}
     response = await ac.post(
-        "/auth/register",
+        "/api/user/register",
         json=data,
     )
     assert 200 == response.status_code

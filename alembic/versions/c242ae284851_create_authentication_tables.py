@@ -103,7 +103,7 @@ def upgrade() -> None:
         sa.Column("username", sa.String(length=64), nullable=True, comment="用户名"),
         sa.Column("phone", sa.String(length=11), nullable=True, comment="手机号"),
         sa.Column("email", sa.String(length=100), nullable=True, comment="邮箱"),
-        sa.Column("password", sa.String(length=32), nullable=False, comment="密码"),
+        sa.Column("password", sa.String(length=32), nullable=True, comment="密码"),
         sa.Column(
             "status", sa.SMALLINT(), nullable=False, comment="状态 0 正常 1 禁用"
         ),

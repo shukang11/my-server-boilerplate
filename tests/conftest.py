@@ -25,44 +25,9 @@ async def ac() -> AsyncGenerator:
         yield c
 
 
-@pytest.fixture(scope="session")
-def setup_db() -> Generator:
-    sync_url = copy(settings.DATABASE_URL)
-    sync_url = sync_url.replace("+aiosqlite", "")
-    sync_url = sync_url.replace("+asyncpg", "")
-    engine = create_engine(sync_url)
-    conn = engine.connect()
-    # Terminate transaction
-    conn.execute(text("commit"))
-    try:
-        conn.execute(text("drop database test"))
-    except SQLAlchemyError:
-        pass
-    finally:
-        conn.close()
-
-    conn = engine.connect()
-    # Terminate transaction
-    conn.execute(text("commit"))
-    conn.execute(text("create database test"))
-    conn.close()
-
-    yield
-
-    conn = engine.connect()
-    # Terminate transaction
-    conn.execute(text("commit"))
-    try:
-        conn.execute(text("drop database test"))
-    except SQLAlchemyError:
-        pass
-    conn.close()
-    engine.dispose()
-
-
 @pytest.fixture(scope="session", autouse=True)
-def setup_test_db(setup_db: Generator) -> Generator:
-    sync_url = copy(settings.DATABASE_URL)
+def setup_test_db() -> Generator:
+    sync_url = copy(settings.SQLALCHEMY_DATABASE_URL)
     sync_url = sync_url.replace("+aiosqlite", "")
     sync_url = sync_url.replace("+asyncpg", "")
     engine = create_engine(sync_url)
@@ -79,7 +44,7 @@ def setup_test_db(setup_db: Generator) -> Generator:
 @pytest.fixture
 async def session() -> AsyncGenerator:
     # https://github.com/sqlalchemy/sqlalchemy/issues/5811#issuecomment-756269881
-    async_engine = create_async_engine(settings.DATABASE_URL)
+    async_engine = create_async_engine(settings.SQLALCHEMY_DATABASE_URL)
     async with async_engine.connect() as conn:
         await conn.begin()
         await conn.begin_nested()

@@ -67,7 +67,9 @@ class UserInDB(DBBaseModel):
     email: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True, comment="邮箱"
     )
-    password: Mapped[str] = mapped_column(String(32), nullable=False, comment="密码")
+    password: Mapped[Optional[str]] = mapped_column(
+        String(32), nullable=True, comment="密码"
+    )
     status: Mapped[UserStatus] = mapped_column(
         SMALLINT, nullable=False, default=0, comment="状态 0 正常 1 禁用"
     )

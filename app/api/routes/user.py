@@ -3,8 +3,15 @@ from fastapi import APIRouter
 from app.api.dependencies.auth import UserRequire
 from app.api.dependencies.session import AsyncSession
 from app.api.response import Response
-from app.controllers.user import (LoginResp, LoginUser, RegisterUser, UserSchema,
-                                  login_user, register_user, user_count)
+from app.controllers.user import (
+    LoginResp,
+    LoginUser,
+    RegisterUser,
+    UserSchema,
+    login_user,
+    register_user,
+    user_count,
+)
 
 router = APIRouter(prefix="/user", tags=["个人信息接口"])
 

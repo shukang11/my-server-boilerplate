@@ -8,6 +8,7 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 
 @router.get("/check")
+@router.post("/check")
 async def health_check_get() -> Response[Dict[str, str]]:
     """健康检查"""
     return Response[dict](data={"status": "ok"})
